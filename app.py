@@ -27,6 +27,18 @@ if not team_code:
     st.sidebar.warning("팀 코드를 입력해야 데이터가 공유됩니다.")
     st.info("왼쪽 사이드바에 우리 팀만의 코드를 입력하고 시작하세요!")
     st.stop()
+else:
+    # 중복 확인 로직: 일정 테이블에 해당 팀 코드가 이미 있는지 확인
+    try:
+        check_exists = conn.table("schedules").select("id").eq("team_id", team_code).limit(1).execute()
+        
+        if check_exists.data:
+            st.sidebar.success(f"✅ '{team_code}' 팀으로 접속되었습니다.")
+        else:
+            st.sidebar.info(f"✨ 새로운 팀 코드입니다. 팀원들과 공유하여 시작하세요!")
+    except:
+        # 테이블이 비어있거나 오류 시에도 정상 진행되도록 예외 처리
+        pass
 
 menu = st.sidebar.radio("화면 이동", ["📅 일정 관리", "🤖 AI 도우미", "📂 자료실"])
 
