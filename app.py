@@ -139,7 +139,7 @@ elif menu == "📂 자료실":
 
     st.divider()
 
-    # 2. 파일 목록 및 다운로드 섹션
+   # 2. 파일 목록 및 삭제/다운로드 섹션
     st.subheader("📋 우리 팀 자료 목록")
     
     try:
@@ -147,22 +147,29 @@ elif menu == "📂 자료실":
         files = conn.client.storage.from_("team_files").list(team_code)
         
         if files:
-            # 깔끔하게 표 형태로 보여주기 위해 데이터 가공
             for file in files:
-                # .empty_folder_placeholder 같은 시스템 파일은 제외
                 if file['name'] == '.empty_folder_placeholder':
                     continue
                     
-                col1, col2 = st.columns([4, 1])
+                # 파일당 3개의 컬럼 (파일명, 다운로드 버튼, 삭제 버튼)
+                col1, col2, col3 = st.columns([3, 1, 1])
                 col1.write(f"📄 {file['name']}")
                 
-                # 파일의 공개 URL 가져오기
-                file_url = conn.client.storage.from_("team_files").get_public_url(f"{team_code}/{file['name']}")
-                
                 # 다운로드 버튼
+                file_url = conn.client.storage.from_("team_files").get_public_url(f"{team_code}/{file['name']}")
                 col2.link_button("다운로드", file_url)
+                
+                # 삭제 버튼 (빨간색 버튼)
+                if col3.button("삭제", key=f"del_{file['name']}", type="secondary"):
+                    try:
+                        # 서버에서 파일 삭제 실행
+                        conn.client.storage.from_("team_files").remove([f"{team_code}/{file['name']}"])
+                        st.warning(f"🗑️ '{file['name']}' 파일이 삭제되었습니다.")
+                        st.rerun() # 목록 갱신을 위해 새로고침
+                    except Exception as e:
+                        st.error(f"삭제 실패: {e}")
         else:
-            st.info("아직 업로드된 파일이 없습니다. 첫 번째 파일을 올려보세요!")
+            st.info("아직 업로드된 파일이 없습니다.")
             
     except Exception as e:
         st.info("아직 생성된 폴더가 없습니다. 파일을 먼저 업로드해주세요.")
