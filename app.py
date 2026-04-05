@@ -113,7 +113,56 @@ elif menu == "🤖 AI 도우미":
     st.link_button("🚀 Gemini 앱 실행", "https://gemini.google.com/app")
 
 elif menu == "📂 자료실":
-    st.header("📂 팀 공유 자료실")
-    uploaded_file = st.file_uploader("문서 선택", type=['pdf', 'xlsx', 'pptx', 'docx', 'zip'])
+    st.header(f"📂 {team_code} 팀 공유 자료실")
+    
+    # 1. 파일 업로드 섹션
+    st.subheader("📤 파일 올리기")
+    uploaded_file = st.file_uploader("추가할 파일을 선택하세요", type=['pdf', 'xlsx', 'pptx', 'docx', 'zip', 'png', 'jpg'])
+    
     if uploaded_file:
-        st.success(f"'{uploaded_file.name}' 업로드 완료!")
+        # 파일 경로 설정 (팀코드 폴더 안에 저장)
+        file_path = f"{team_code}/{uploaded_file.name}"
+        
+        if st.button("서버에 업로드"):
+            with st.spinner("파일을 업로드 중입니다..."):
+                try:
+                    # Supabase Storage에 파일 업로드
+                    conn.client.storage.from_("team_files").upload(
+                        path=file_path,
+                        file=uploaded_file.getvalue(),
+                        file_options={"upsert": "true"} # 같은 이름 파일 덮어쓰기 허용
+                    )
+                    st.success(f"✅ '{uploaded_file.name}' 업로드 성공!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"업로드 실패: {e}")
+
+    st.divider()
+
+    # 2. 파일 목록 및 다운로드 섹션
+    st.subheader("📋 우리 팀 자료 목록")
+    
+    try:
+        # 해당 팀 코드 폴더 내의 파일 목록 가져오기
+        files = conn.client.storage.from_("team_files").list(team_code)
+        
+        if files:
+            # 깔끔하게 표 형태로 보여주기 위해 데이터 가공
+            for file in files:
+                # .empty_folder_placeholder 같은 시스템 파일은 제외
+                if file['name'] == '.empty_folder_placeholder':
+                    continue
+                    
+                col1, col2 = st.columns([4, 1])
+                col1.write(f"📄 {file['name']}")
+                
+                # 파일의 공개 URL 가져오기
+                file_url = conn.client.storage.from_("team_files").get_public_url(f"{team_code}/{file['name']}")
+                
+                # 다운로드 버튼
+                col2.link_button("다운로드", file_url)
+        else:
+            st.info("아직 업로드된 파일이 없습니다. 첫 번째 파일을 올려보세요!")
+            
+    except Exception as e:
+        st.info("아직 생성된 폴더가 없습니다. 파일을 먼저 업로드해주세요.")
